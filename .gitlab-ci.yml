@@ -14,7 +14,7 @@ cache:
 before_script:
 - rm -rf .terraform
 - terraform -version
-- terraform init -backend-config="bucket=$BACKEND_BUCKET" -backend-config="dynamodb_table=$BACKEND_TABLE" -backend-config="key=$BACKEND_KEY/terraform.tfstate"
+- terraform init -backend-config="bucket=$BACKEND_BUCKET" -backend-config="dynamodb_table=$BACKEND_TABLE" -backend-config="region=$BACKEND_REGION"
 
 stages:
 - validate

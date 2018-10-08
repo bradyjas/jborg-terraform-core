@@ -2,12 +2,9 @@ version: 2
 
 # Job Defaults
 terraform: &terraform
-  working_directory: /tmp/workspace/terraform
+  working_directory: /tmp/workspace
   docker:
   - image: hashicorp/terraform:0.11.8
-    #entrypoint:
-    #- '/usr/bin/env'
-    #- 'PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
 
 jobs:
   checkout:

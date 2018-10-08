@@ -1,0 +1,106 @@
+version: 2
+
+# Job Defaults
+terraform: &terraform
+  working_directory: /tmp/workspace/terraform
+  docker:
+  - image: hashicorp/terraform:0.11.8
+    entrypoint:
+    - '/usr/bin/env'
+    - 'PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
+
+jobs:
+  checkout:
+    <<: *terraform
+    steps:
+    - checkout
+    - persist_to_workspace:
+      root: .
+      paths: .
+
+  validate:
+    <<: *terraform
+    steps:
+    - attach_workspace:
+        at: /tmp/workspace
+    - run:
+        name: Print Terraform version
+        command: terraform -version
+    - run:
+        name: Initialize Terraform
+        command: terraform init -input=false -backend-config="bucket=$BACKEND_BUCKET" -backend-config="dynamodb_table=$BACKEND_TABLE" -backend-config="region=$BACKEND_REGION"
+    - run:
+        name: Validate configuration
+        command: terraform validate -check-variables=false
+    - run:
+        name: Check configuration formatting
+        command: terraform fmt -write=false
+
+  plan:
+    <<: *terraform
+    steps:
+    - attach_workspace:
+        at: /tmp/workspace
+    - run:
+        name: Print Terraform version
+        command: terraform -version
+    - run:
+        name: Initialize Terraform
+        command: terraform init -input=false -backend-config="bucket=$BACKEND_BUCKET" -backend-config="dynamodb_table=$BACKEND_TABLE" -backend-config="region=$BACKEND_REGION"
+    - run:
+        name: Plan deployment
+        command: terraform plan -input=false -out=planfile
+    - persist_to_workspace:
+      root: .
+      paths:
+        - .terraform/
+        - planfile
+
+  apply:
+    <<: *terraform
+    steps:
+    - attach_workspace:
+        at: /tmp/workspace
+    - run:
+        name: Apply deployment
+        command: terraform apply -input=false planfile
+    - run:
+        name: Initialize Terraform
+        command: terraform init -input=false -backend-config="bucket=$BACKEND_BUCKET" -backend-config="dynamodb_table=$BACKEND_TABLE" -backend-config="region=$BACKEND_REGION"
+    - run:
+        name: Plan deployment
+        command: terraform plan -input=false -out=planfile
+    - persist_to_workspace:
+      root: .
+      paths:
+        - .terraform/
+        - planfile
+
+
+# Workflow Defaults
+workflow-filters: &workflow-filters
+  filters:
+    branches:
+      only:
+      - master
+
+workflows:
+  version: 2
+  validate-plan-apply:
+    jobs:
+    - checkout
+    - validate:
+        requires:
+        - checkout
+    - plan:
+        requires:
+        - validate
+    - approve:
+        <<: *workflow-filters
+        type: approval
+        requires:
+          - plan
+    - apply:
+        <<: *workflow-filters
+        requires:
+        - approve

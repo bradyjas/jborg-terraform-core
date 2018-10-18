@@ -21,7 +21,7 @@ stages:
 - Plan Deployment
 - Apply Changes
 
-terraform init:
+init:
   stage: Initialization
   script:
   - |
@@ -29,19 +29,19 @@ terraform init:
     -backend-config="bucket=$BACKEND_BUCKET" \
     -backend-config="dynamodb_table=$BACKEND_TABLE" \
     -backend-config="region=$BACKEND_REGION"
-
-terraform get:
-  stage: Initialization
-  script:
   - terraform get -update=true
 
-terraform validate:
+validate:
   stage: Integration Tests
+  cache:
+    policy: pull
   script:
   - terraform validate
 
-terraform plan:
+plan:
   stage: Plan Deployment
+  cache:
+    policy: pull
   script:
   - terraform plan -input=false -out=$PLANFILE
   artifacts:
@@ -50,12 +50,14 @@ terraform plan:
     paths:
     - $PLANFILE
 
-terraform apply:
+apply:
   stage: Apply Changes
+  dependencies:
+  - plan
+  cache:
+    policy: pull
   script:
   - terraform apply -input=false $PLANFILE
-  dependencies:
-  - terraform plan
   only:
     refs:
     - master

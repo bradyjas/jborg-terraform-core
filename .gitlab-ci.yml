@@ -7,58 +7,54 @@ image:
 variables:
   PLANFILE: planfile
 
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+  - .terraform/
+
 before_script:
 - terraform -version
 
 stages:
-- init
-- validate
-- plan
-- apply
+- Initialization
+- Integration Tests
+- Plan Deployment
+- Apply Changes
 
-init:
-  stage: init
+terraform init:
+  stage: Initialization
   script:
-  - terraform init -input=false -backend-config="bucket=$BACKEND_BUCKET" -backend-config="dynamodb_table=$BACKEND_TABLE" -backend-config="region=$BACKEND_REGION"
-  - terraform get -update=true
-  environment:
-    name: plan
-  cache:
-    key: ${CI_COMMIT_REF_SLUG}
-    paths:
-    - .terraform/
+  - |
+    terraform init -input=false \
+    -backend-config="bucket=$BACKEND_BUCKET" \
+    -backend-config="dynamodb_table=$BACKEND_TABLE" \
+    -backend-config="region=$BACKEND_REGION"
 
-validate:
-  stage: validate
+terraform get:
+  stage: Initialization
+  script:
+  - terraform get -update=true
+
+terraform validate:
+  stage: Integration Tests
   script:
   - terraform validate
-  environment:
-    name: plan
-  dependencies:
-  - init
 
-plan:
-  stage: plan
+terraform plan:
+  stage: Plan Deployment
   script:
   - terraform plan -input=false -out=$PLANFILE
-  environment:
-    name: plan
-  dependencies:
-  - validate
   artifacts:
     name: planfile
     paths:
     - $PLANFILE
 
-apply:
-  stage: apply
+terraform apply:
+  stage: Apply Changes
   script:
   - terraform apply -input=false $PLANFILE
-  environment:
-    name: production
   dependencies:
-  - plan
-  when: manual
+  - Plan Deployment
   only:
     refs:
     - master

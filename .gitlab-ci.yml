@@ -7,11 +7,6 @@ image:
 variables:
   PLANFILE: planfile
 
-cache:
-  key: ${CI_COMMIT_REF_SLUG}
-  paths:
-  - .terraform/
-
 before_script:
 - terraform -version
 
@@ -23,6 +18,10 @@ stages:
 
 init:
   stage: Initialization
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+    - .terraform/
   script:
   - |
     terraform init -input=false \
@@ -34,14 +33,20 @@ init:
 validate:
   stage: Integration Tests
   cache:
+    key: ${CI_COMMIT_REF_SLUG}
     policy: pull
+    paths:
+    - .terraform/
   script:
   - terraform validate
 
 plan:
   stage: Plan Deployment
   cache:
+    key: ${CI_COMMIT_REF_SLUG}
     policy: pull
+    paths:
+    - .terraform/
   script:
   - terraform plan -input=false -out=$PLANFILE
   artifacts:
@@ -55,7 +60,10 @@ apply:
   dependencies:
   - plan
   cache:
+    key: ${CI_COMMIT_REF_SLUG}
     policy: pull
+    paths:
+    - .terraform/
   script:
   - terraform apply -input=false $PLANFILE
   only:

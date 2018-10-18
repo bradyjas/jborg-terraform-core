@@ -1,0 +1,39 @@
+version: '1.0'
+
+terraform: &terraform
+  image: hashicorp/terraform:light
+  entry_point:
+  - '/usr/bin/env'
+  - 'PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
+
+steps:
+  init:
+    title: Initialize Project
+    <<: *terraform
+    commands:
+    - terraform -version
+    - terraform init -input=false -backend-config="bucket=${{BACKEND_BUCKET}}" -backend-config="dynamodb_table=${{BACKEND_TABLE}}" -backend-config="region=${{BACKEND_REGION}}"
+    - terraform get -update=true
+  validate:
+    title: Validate Files
+    <<: *terraform
+    commands:
+    - terraform -version
+    - terraform validate
+  plan:
+    title: Plan Deployment
+    <<: *terraform
+    commands:
+    - terraform -version
+    - terraform plan -input=false -out=${{PLANFILE}}
+  apply:
+    title: Apply Changes
+    <<: *terraform
+    commands:
+    - terraform -version
+    - terraform apply -input=false ${{PLANFILE}}
+    when:
+      branch:
+        only:
+        - master
+        - codefresh

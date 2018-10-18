@@ -1,0 +1,64 @@
+image:
+  name: hashicorp/terraform:light
+  entrypoint:
+  - '/usr/bin/env'
+  - 'PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
+
+variables:
+  PLANFILE: planfile
+
+before_script:
+- terraform -version
+
+stages:
+- init
+- validate
+- plan
+- apply
+
+init:
+  stage: init
+  script:
+  - terraform init -input=false -backend-config="bucket=$BACKEND_BUCKET" -backend-config="dynamodb_table=$BACKEND_TABLE" -backend-config="region=$BACKEND_REGION"
+  - terraform get -update=true
+  environment:
+    name: plan
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+    - .terraform/
+
+validate:
+  stage: validate
+  script:
+  - terraform validate
+  environment:
+    name: plan
+  dependencies:
+  - init
+
+plan:
+  stage: plan
+  script:
+  - terraform plan -input=false -out=$PLANFILE
+  environment:
+    name: plan
+  dependencies:
+  - validate
+  artifacts:
+    name: planfile
+    paths:
+    - $PLANFILE
+
+apply:
+  stage: apply
+  script:
+  - terraform apply -input=false $PLANFILE
+  environment:
+    name: production
+  dependencies:
+  - plan
+  when: manual
+  only:
+    refs:
+    - master

@@ -46,6 +46,7 @@ terraform plan:
   - terraform plan -input=false -out=$PLANFILE
   artifacts:
     name: planfile
+    expire_in: 1 day
     paths:
     - $PLANFILE
 
@@ -54,7 +55,7 @@ terraform apply:
   script:
   - terraform apply -input=false $PLANFILE
   dependencies:
-  - Plan Deployment
+  - terraform plan
   only:
     refs:
     - master

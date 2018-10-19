@@ -1,7 +1,7 @@
 ### VPC ###
 
 module "vpc" {
-  source = "github.com/bradyjas/jborg-terraform-modules//common/aws/vpc"
+  source = "github.com/bradyjas/jborg-terraform-modules//common/aws/vpc?ref=v0.1.1"
 
   name            = "jborg"
   azs             = ["us-west-2a", "us-west-2b", "us-west-2c"]

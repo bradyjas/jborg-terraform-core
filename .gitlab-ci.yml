@@ -1,28 +1,45 @@
-image:
-  name: hashicorp/terraform:light
-  entrypoint:
-  - '/usr/bin/env'
-  - 'PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
-
-variables:
-  PLANFILE: planfile
-
-before_script:
-- terraform -version
-
 stages:
 - Initialization
 - Integration Tests
 - Plan Deployment
 - Apply Changes
 
-init:
-  stage: Initialization
+
+## Build Image Templates
+
+.terraform-template:
+  image:
+    name: hashicorp/terraform:light
+    entrypoint:
+    - '/usr/bin/env'
+    - 'PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
   cache:
-    key: ${CI_COMMIT_REF_SLUG}
+    key: terraform-${CI_COMMIT_REF_SLUG}
+    policy: pull
     paths:
     - .terraform/
+  variables:
+    PLANFILE: planfile
+
+.tflint-template:
+  image:
+    name: wata727/tflint:latest
+  cache:
+    key: terraform-${CI_COMMIT_REF_SLUG}
+    policy: pull
+    paths:
+    - .terraform/
+
+
+## Jobs
+
+init:
+  stage: Initialization
+  extends: .terraform-template
+  cache:
+    policy: pull-push
   script:
+  - terraform -version
   - |
     terraform init -input=false \
     -backend-config="bucket=$BACKEND_BUCKET" \
@@ -32,21 +49,23 @@ init:
 
 validate:
   stage: Integration Tests
-  cache:
-    key: ${CI_COMMIT_REF_SLUG}
-    policy: pull
-    paths:
-    - .terraform/
+  extends: .terraform-template
   script:
   - terraform validate
 
+tflint:
+  stage: Integration Tests
+  extends: .tflint-template
+  script:
+  - tflint -v
+  - tflint --error-with-issues
+  except:
+    refs:
+    - master
+
 plan:
   stage: Plan Deployment
-  cache:
-    key: ${CI_COMMIT_REF_SLUG}
-    policy: pull
-    paths:
-    - .terraform/
+  extends: .terraform-template
   script:
   - terraform plan -input=false -out=$PLANFILE
   artifacts:
@@ -57,13 +76,9 @@ plan:
 
 apply:
   stage: Apply Changes
+  extends: .terraform-template
   dependencies:
   - plan
-  cache:
-    key: ${CI_COMMIT_REF_SLUG}
-    policy: pull
-    paths:
-    - .terraform/
   script:
   - terraform apply -input=false $PLANFILE
   only:
